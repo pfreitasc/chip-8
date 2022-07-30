@@ -1,0 +1,7 @@
+make --dry-run --always-make --keep-going --print-directory
+make: Entering directory '/home/pedro/Projects/TCC/chip8-emu'
+ 
+make: *** No rule to make target 'src/chip8.c', needed by 'all'.
+
+make: Leaving directory '/home/pedro/Projects/TCC/chip8-emu'
+ 
