@@ -91,16 +91,49 @@ void Chip8_loadGame (Chip8 *chip8, char *filename) {
 }
 
 void Chip8_interpreter(Chip8 *chip8){
-  printf("Iniciando loop infinito.");
+  printf("Iniciando loop infinito.\n");
   while (1){
     //fetch stage
     chip8->opcode = chip8->ram[chip8->PC];
     chip8->opcode = (chip8->opcode)<<8;
     chip8->opcode = (chip8->opcode) | chip8->ram[(chip8->PC) + 1];
 
+    unsigned short current_opcode = chip8->opcode;
+
     chip8->PC = chip8->PC + 2;
 
+    printf("addr: %#004x, opcode: %#004x, instruction: ", chip8->PC, chip8->opcode);
     //decode & execute stage
     
+    
+    switch (current_opcode & 0xF000) {
+      case 0x0000:
+        printf("00E0\n");
+      break;
+      
+      case 0x1000:
+        printf("1NNN\n");
+      break;
+
+      case 0x6000:
+        printf("6XNN\n");
+      break;
+
+      case 0x7000:
+        printf("7XNN\n");
+      break;
+      
+      case 0xA000:
+        printf("ANNN\n");
+      break;
+
+      case 0xD000:
+        printf("DXYN\n");
+      break;
+
+      default:
+        printf("Unimplemented\n");
+      break;
+    }
   }
 }
