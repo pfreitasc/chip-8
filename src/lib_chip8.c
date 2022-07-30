@@ -63,13 +63,15 @@ void Chip8_init(Chip8 *chip8){
     chip8->display[i] = 0;
 
   //setting PC to start of program
-  chip8->PC = RAM_PROGRAM_START + 1;
+  chip8->PC = RAM_PROGRAM_START;
 
-  //clearing registers
+  //clearing variables
   chip8->I = 0;
   chip8->SP = 0;
   chip8->opcode = 0;
   chip8->key = 0;
+  chip8->delay_timer = 0;
+  chip8->sound_timer = 0;
 }
 
 //loads game on chip 8 memory. game file size must be 3896 kb max 
@@ -99,41 +101,187 @@ void Chip8_interpreter(Chip8 *chip8){
     chip8->opcode = (chip8->opcode) | chip8->ram[(chip8->PC) + 1];
 
     unsigned short current_opcode = chip8->opcode;
+    unsigned short opcode_nibble1 = chip8->opcode & 0xF000;
+    unsigned short opcode_nibble4 = chip8->opcode & 0x000F;
+    unsigned short opcode_byte2 = chip8->opcode & 0x00FF;
 
     chip8->PC = chip8->PC + 2;
 
-    printf("addr: %#004x, opcode: %#004x, instruction: ", chip8->PC, chip8->opcode);
     //decode & execute stage
-    
-    
-    switch (current_opcode & 0xF000) {
+    printf("addr: %#04X, opcode: %#04X, instruction: ", chip8->PC, chip8->opcode);
+    switch (opcode_nibble1) {
       case 0x0000:
-        printf("00E0\n");
+        switch (opcode_byte2) {
+          case 0x00E0: //00E0 - clear screen
+            printf("00E0");
+          break;
+
+          case 0x00EE: //00EE - return from subroutine
+            printf("00EE");
+          break;
+
+          default: //doesn't exist
+            printf("Doesn't exist");
+          break;
+        }
       break;
       
-      case 0x1000:
-        printf("1NNN\n");
+      case 0x1000: //1NNN - jump to address
+        printf("1NNN");
       break;
 
-      case 0x6000:
-        printf("6XNN\n");
+      case 0x2000: //2NNN - jump to subroutine
+        printf("2NNN");
       break;
 
-      case 0x7000:
-        printf("7XNN\n");
+      case 0x3000: //3XNN - skip if different (reg with val)
+        printf("3XNN");
+      break;
+
+      case 0x4000: //4XNN skip if equals (reg with val)
+        printf("4XNN");
+      break;
+
+      case 0x5000: //5XY0 skip if equals (reg with reg)
+        printf("5XY0");
+      break;
+
+      case 0x6000: //6XNN assign (val to reg)
+        printf("6XNN");
+      break;
+
+      case 0x7000: //7XNN accumulate (val to reg)
+        printf("7XNN");
       break;
       
-      case 0xA000:
-        printf("ANNN\n");
+      case 0x8000:
+        switch (opcode_nibble4) {
+          case 0x0000: //8XY0 assign (reg to reg)
+            printf("8XY0");
+          break;
+
+          case 0x0001: //8XY1 bitwise OR (reg with reg)
+            printf("8XY1");
+          break;
+
+          case 0x0002: //8XY2 bitwise AND (reg with reg)
+            printf("8XY2");
+          break;
+
+          case 0x0003: //8XY3 bitwise XOR (reg with reg)
+            printf("8XY3");
+          break;
+
+          case 0x0004: //8XY4 accumulate (reg to reg)
+            printf("8XY4");
+          break;
+
+          case 0x0005: //8XY5 subtract then assign (reg to reg)
+            printf("8XY5");
+          break;
+
+          case 0x0006: //8XY6 assign then shift right (reg by reg) or shift (reg)
+            printf("8XY6");
+          break;
+
+          case 0x0007: //8XY7 neg subtract then assign (reg to reg)
+            printf("8XY7");
+          break;
+
+          case 0x000E: //8XYE 8XY6 assign then shift left (reg by reg) or shift (reg)
+            printf("8XYE");
+          break;
+
+          default: //doesn't exist
+            printf("Doesn't exist");
+          break;
+        }
       break;
 
-      case 0xD000:
-        printf("DXYN\n");
+      case 0x9000: //9XY0 skip if equals (reg with reg)
+        printf("9XY0");
       break;
 
-      default:
-        printf("Unimplemented\n");
+      case 0xA000: //ANNN assign to ram pointer
+        printf("ANNN");
+      break;
+
+      case 0xB000: //BNNN jump to addr + v0
+        printf("BNNN");
+      break;
+
+      case 0xC000: //CXNN random number AND val
+        printf("CXNN");
+      break;
+
+      case 0xD000: //DXYN draw sprite
+        printf("DXYN");
+      break;
+
+      case 0xE000: 
+        switch (opcode_nibble4) {
+          case 0x000E: //EX9E skip if key not pressed
+            printf("EX9E");
+          break;
+
+          case 0x0001: //EXA1 skip if key pressed
+            printf("EXA1");
+          break;
+
+          default: //Doesn't exist
+            printf("Doesn't exist");
+          break;
+        }
+      break;
+
+      case 0xF000: 
+        switch (opcode_byte2) {
+          case 0x0007: //FX07 assign delay timer to reg
+            printf("FX07");
+          break;
+
+          case 0x000A: //FX0A assign key to reg (wait for keypress)
+            printf("FX0A");
+          break;
+
+          case 0x0015: //FX15 assign reg to delay timer
+            printf("FX15");
+          break
+
+          case 0x0018: //FX18 assign reg to sound timer
+            printf("FX18");
+          break;
+
+          case 0x001E: //FX1E accumulate to ram pointer
+            printf("FX1E");
+          break;
+
+          case 0x0029: //FX29 assign ram pointer to hex char in reg (in ram region 0~0x50)
+            printf("FX29");
+          break;
+
+          case 0x0033: //FX33 bcd reg
+            printf("FX33");
+          break;
+
+          case 0x0055: //FX55 save regs to ram
+            printf("FX55");
+          break;
+
+          case 0x0065: //FX65 load regs from ram
+            printf("FX65");
+          break;
+
+          default: //doesn't exist
+            printf("Doesn't exist");
+          break;
+        }
+      break;
+
+      default: //doesn't exist
+        printf("Doesn't exist");
       break;
     }
+    printf("\n");
   }
 }
