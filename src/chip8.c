@@ -1,14 +1,17 @@
-#define DISPLAY_SIZE 64*32
+#define SCREEN_WIDTH 64
+#define SCREEN_HEIGHT 32
+#define SCREEN_SCALE_FACTOR 10
 #define RAM_SIZE 4096
 #define RAM_PROGRAM_START 512
 #define MAX_GAME_SIZE 4096-512
 
 #include <stdio.h>
-#include <time.h>
+//#include <time.h>
+#include <SDL2/SDL.h>
 
 typedef struct { 
   unsigned char ram[RAM_SIZE];
-  unsigned char display [DISPLAY_SIZE];
+  unsigned char display [SCREEN_WIDTH][SCREEN_HEIGHT];
   unsigned char V[16]; //all purpose registers
   unsigned short I; //memory address pointer
   unsigned short PC; //program address
@@ -21,8 +24,8 @@ typedef struct {
 } Chip8;
 
 //initializes chip8 variables and SDL screen
-//input: chip8 object
-void Chip8_init(Chip8 *chip8){
+//input: chip8 struct
+void Chip8_init(Chip8 *chip8, SDL_Window *game_window, SDL_Surface *game_surface){
   int i, j;
 
   //clearing RAM
@@ -59,8 +62,9 @@ void Chip8_init(Chip8 *chip8){
   }
   
   //clearing display
-  for (i = 0; i < DISPLAY_SIZE; i++)
-    chip8->display[i] = 0;
+  for (i = 0; i < SCREEN_WIDTH; i++)
+    for (j = 0; j < SCREEN_HEIGHT; j++)
+      chip8->display[i][j] = 0;
 
   //setting PC to start of program
   chip8->PC = RAM_PROGRAM_START;
@@ -72,10 +76,26 @@ void Chip8_init(Chip8 *chip8){
   chip8->key = 0;
   chip8->delay_timer = 0;
   chip8->sound_timer = 0;
+
+  //initializing screen
+  if(SDL_Init(SDL_INIT_VIDEO) < 0) {
+      printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
+  }
+  else {
+      //create window
+      game_window = SDL_CreateWindow("CHIP-8", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH*SCREEN_SCALE_FACTOR, SCREEN_HEIGHT*SCREEN_SCALE_FACTOR, SDL_WINDOW_SHOWN);
+      if(game_window == NULL) {
+        printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
+      }
+      else {
+        //get window surface
+        game_surface = SDL_GetWindowSurface(game_window);
+      }
+  }
 }
 
 //loads game on chip 8 memory. game file size must be 3896 kb max 
-//inputs: chip8 object and file name string
+//inputs: chip8 struct and file name string
 void Chip8_loadGame (Chip8 *chip8, char *filename) {
   FILE *fgame;
   fgame = fopen(filename, "rb");
@@ -92,15 +112,27 @@ void Chip8_loadGame (Chip8 *chip8, char *filename) {
   return;
 }
 
-void Chip8_interpreter(Chip8 *chip8){
-  printf("Iniciando loop infinito.\n");
-  while (1){
+//instructions
+
+//0E00: clear screen
+void Chip8_clearScreen(Chip8 *chip8, SDL_Window *game_window, SDL_Surface *game_surface) {
+  //fill the surface black
+  SDL_FillRect(game_surface, NULL, SDL_MapRGB(game_surface->format, 0xFF, 0xFF, 0xFF));
+
+  //update the surface
+  SDL_UpdateWindowSurface(game_window);
+}
+
+//implementation of the instruction fetch -> decode -> execute loop of the chip 8 interpreter
+//input: initialized chip8 struct 
+void Chip8_interpreterMainLoop(Chip8 *chip8, SDL_Window *game_window, SDL_Surface *game_surface) {
+  printf("Starting loop.\n");
+  while (1) {
     //fetch stage
     chip8->opcode = chip8->ram[chip8->PC];
     chip8->opcode = (chip8->opcode)<<8;
     chip8->opcode = (chip8->opcode) | chip8->ram[(chip8->PC) + 1];
 
-    unsigned short current_opcode = chip8->opcode;
     unsigned short opcode_nibble1 = chip8->opcode & 0xF000;
     unsigned short opcode_nibble4 = chip8->opcode & 0x000F;
     unsigned short opcode_byte2 = chip8->opcode & 0x00FF;
@@ -114,6 +146,7 @@ void Chip8_interpreter(Chip8 *chip8){
         switch (opcode_byte2) {
           case 0x00E0: //00E0 - clear screen
             printf("00E0");
+            Chip8_clearScreen(chip8, &game_window, &game_surface);
           break;
 
           case 0x00EE: //00EE - return from subroutine
@@ -246,7 +279,7 @@ void Chip8_interpreter(Chip8 *chip8){
 
           case 0x0015: //FX15 assign reg to delay timer
             printf("FX15");
-          break
+          break;
 
           case 0x0018: //FX18 assign reg to sound timer
             printf("FX18");

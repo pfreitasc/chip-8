@@ -1,0 +1,17 @@
+{
+    "files.associations": {
+        "time.h": "c"
+    },
+    "makefile.launchConfigurations": [
+        {
+            "cwd": "/home/pedro/Projects/TCC/chip8-emu/bin",
+            "binaryPath": "/home/pedro/Projects/TCC/chip8-emu/bin/chip8",
+            "binaryArgs": []
+        },
+        {
+            "cwd": "/home/pedro/Projects/TCC/chip8-emu/bin",
+            "binaryPath": "/home/pedro/Projects/TCC/chip8-emu/bin/test_chip8",
+            "binaryArgs": []
+        }
+    ]
+}
