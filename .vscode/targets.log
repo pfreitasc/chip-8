@@ -6,7 +6,7 @@ make all --print-data-base --no-builtin-variables --no-builtin-rules --question
 # This is free software: you are free to change and redistribute it.
 # There is NO WARRANTY, to the extent permitted by law.
 
-# Make data base, printed on Mon Aug  1 18:29:43 2022
+# Make data base, printed on Sat Aug  6 16:12:01 2022
 
 # Variables
 
@@ -130,7 +130,7 @@ PWD = /home/pedro/Projects/TCC/chip8-emu
 SSH_AGENT_PID = 4108
 # environment
 ORIGINAL_XDG_CURRENT_DESKTOP = ubuntu:GNOME
-# makefile (from 'Makefile', line 12)
+# makefile (from 'Makefile', line 15)
 LINKER_FLAGS = -lSDL2
 # environment
 GTK_MODULES = gail:atk-bridge
@@ -141,7 +141,6 @@ HOME = /home/pedro
 # environment
 LESSCLOSE = /usr/bin/lesspipe %s %s
 # environment
- 
 VSCODE_CLI = 1
 # environment
 VSCODE_CODE_CACHE_PATH = /home/pedro/.config/Code/CachedData/3b889b090b5ad5793f524b5d1d39fda662b96a2a
@@ -175,8 +174,8 @@ COLORTERM = truecolor
 MAKE = $(MAKE_COMMAND)
 # default
 MAKECMDGOALS := all
-# makefile (from 'Makefile', line 9)
-COMPILER_FLAGS = -w -g2 -gdwarf
+# makefile (from 'Makefile', line 12)
+COMPILER_FLAGS = -g2 -gdwarf
 # environment
 QT_IM_MODULE = ibus
 # environment
@@ -259,7 +258,7 @@ WINDOWPATH = 2
 .INCLUDE_DIRS = /usr/include /usr/local/include /usr/include
 # environment
 LC_IDENTIFICATION = pt_BR.UTF-8
-# makefile (from 'Makefile', line 15)
+# makefile (from 'Makefile', line 18)
 OBJ_NAME = bin/test_chip8
 # default
 .RECIPEPREFIX := 
@@ -274,9 +273,10 @@ VSCODE_PID = 12573
 # environment
 DBUS_STARTER_ADDRESS = unix:path=/run/user/1000/bus,guid=56ac2bf5980e8b7d3afad6ab62e46b8b
 # variable set hash-table stats:
-# Load=131/1024=13%, Rehash=0, Collisions=23/165=14%
+# Load=131/1024=13%, Rehash=0, Collisions=23/167=14%
 
 # Pattern-specific Variable Values
+ 
 
 # No pattern-specific variable values.
 
@@ -316,9 +316,9 @@ all: src/test_chip8.c
 # automatic
 # ? := src/test_chip8.c
 # variable set hash-table stats:
-# Load=8/32=25%, Rehash=0, Collisions=2/16=12%
-#  recipe to execute (from 'Makefile', line 19):
-	$(CC) $(OBJS) $(COMPILER_FLAGS) $(LINKER_FLAGS) -o $(OBJ_NAME)
+# Load=8/32=25%, Rehash=0, Collisions=3/17=18%
+#  recipe to execute (from 'Makefile', line 22):
+	$(CC) $(OBJS) $(COMPILER_FLAGS) $(DEBUGER_FLAGS) $(LINKER_FLAGS) -o $(OBJ_NAME)
 
 # Not a target:
 .SUFFIXES:
@@ -329,14 +329,14 @@ all: src/test_chip8.c
 # Not a target:
 Makefile:
 #  Implicit rule search has been done.
-#  Last modified 2022-08-01 18:29:38.353652958
+#  Last modified 2022-08-06 16:11:59.160505774
 #  File has been updated.
 #  Successfully updated.
 
 # Not a target:
 src/test_chip8.c:
 #  Implicit rule search has been done.
-#  Last modified 2022-08-01 16:30:30.967333965
+#  Last modified 2022-08-06 15:00:40.384273106
 #  File has been updated.
 #  Successfully updated.
 
@@ -360,6 +360,6 @@ src/test_chip8.c:
 # strcache performance: lookups = 21 / hit rate = 33%
 # hash-table stats:
 # Load=14/8192=0%, Rehash=0, Collisions=1/21=5%
-# Finished Make data base on Mon Aug  1 18:29:43 2022
+# Finished Make data base on Sat Aug  6 16:12:01 2022
 
  

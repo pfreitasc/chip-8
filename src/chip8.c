@@ -11,7 +11,7 @@
 
 typedef struct { 
   unsigned char ram[RAM_SIZE];
-  unsigned char display [SCREEN_WIDTH][SCREEN_HEIGHT];
+  unsigned char display [SCREEN_WIDTH * SCREEN_HEIGHT];
   unsigned char V[16]; //all purpose registers
   unsigned short I; //memory address pointer
   unsigned short PC; //program address
@@ -23,10 +23,15 @@ typedef struct {
   unsigned char key; //current key being pressed on keypad
 } Chip8;
 
+//SDL global variables
+SDL_Window *window = NULL;
+SDL_Renderer *renderer = NULL;
+SDL_Texture *texture = NULL;
+
 //initializes chip8 variables and SDL screen
 //input: chip8 struct
-void Chip8_init(Chip8 *chip8, SDL_Window *game_window, SDL_Surface *game_surface){
-  int i, j;
+void Chip8_init(Chip8 *chip8){
+  int i;
 
   //clearing RAM
   for (i = 0; i < 4096; i++)
@@ -62,9 +67,8 @@ void Chip8_init(Chip8 *chip8, SDL_Window *game_window, SDL_Surface *game_surface
   }
   
   //clearing display
-  for (i = 0; i < SCREEN_WIDTH; i++)
-    for (j = 0; j < SCREEN_HEIGHT; j++)
-      chip8->display[i][j] = 0;
+  for (i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++)
+    chip8->display[i] = i;
 
   //setting PC to start of program
   chip8->PC = RAM_PROGRAM_START;
@@ -77,21 +81,32 @@ void Chip8_init(Chip8 *chip8, SDL_Window *game_window, SDL_Surface *game_surface
   chip8->delay_timer = 0;
   chip8->sound_timer = 0;
 
-  //initializing screen
+  //initializing sSDL
   if(SDL_Init(SDL_INIT_VIDEO) < 0) {
       printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
+      return;
   }
-  else {
-      //create window
-      game_window = SDL_CreateWindow("CHIP-8", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH*SCREEN_SCALE_FACTOR, SCREEN_HEIGHT*SCREEN_SCALE_FACTOR, SDL_WINDOW_SHOWN);
-      if(game_window == NULL) {
-        printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
-      }
-      else {
-        //get window surface
-        game_surface = SDL_GetWindowSurface(game_window);
-      }
+  //initializing SDL global variables
+  window = SDL_CreateWindow("CHIP-8", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH*SCREEN_SCALE_FACTOR, SCREEN_HEIGHT*SCREEN_SCALE_FACTOR, SDL_WINDOW_SHOWN);
+  if(window == NULL) {
+    printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
+    return;
   }
+  renderer = SDL_CreateRenderer(window, -1, 0);
+  if (renderer == NULL) {
+    printf("SDL renderer could not be created.\n");
+    return;
+  }
+  texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB332, SDL_TEXTUREACCESS_TARGET, SCREEN_WIDTH, SCREEN_HEIGHT);
+  if (texture == NULL) {
+    printf("SDL texture could not be created.\n");
+    return;
+  }
+
+  //clear SDL screen
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+  SDL_RenderClear(renderer);
+  SDL_RenderPresent(renderer);
 }
 
 //loads game on chip 8 memory. game file size must be 3896 kb max 
@@ -112,20 +127,95 @@ void Chip8_loadGame (Chip8 *chip8, char *filename) {
   return;
 }
 
+//draws display matrix to sdl screen
+//input: chip8 struct
+void Chip8_drawDisplay(Chip8 *chip8) {
+  SDL_UpdateTexture(texture, NULL, chip8->display, SCREEN_WIDTH * sizeof(unsigned char));
+  SDL_RenderClear(renderer);
+  SDL_RenderCopy(renderer, texture, NULL, NULL);
+  SDL_RenderPresent(renderer);
+}
+
 //instructions
 
 //0E00: clear screen
-void Chip8_clearScreen(Chip8 *chip8, SDL_Window *game_window, SDL_Surface *game_surface) {
-  //fill the surface black
-  SDL_FillRect(game_surface, NULL, SDL_MapRGB(game_surface->format, 0xFF, 0xFF, 0xFF));
+void instr_clearScreen(Chip8 *chip8) {
+  //clearing display
+  int i = 0;
+  for (i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++)
+    chip8->display[i] = 0;
+  //draw cleared display
+  Chip8_drawDisplay(chip8);
+}
 
-  //update the surface
-  SDL_UpdateWindowSurface(game_window);
+//1NNN: jump to instruction in address NNN
+void instr_jump(Chip8 *chip8) {
+  unsigned short nnn = chip8->opcode & 0x0FFF;
+  chip8->PC = nnn;
+}
+
+//6XNN: set register VX to the value NN
+void instr_setVX(Chip8 *chip8) {
+  unsigned short x = chip8->opcode & 0x0F00;
+  x = x >> 8;
+  unsigned short nn = chip8->opcode & 0x00FF;
+  
+  chip8->V[x] = nn;
+}
+
+//7XNN: add value NN to register VX
+void instr_addValVX(Chip8 *chip8) {
+  unsigned short x = chip8->opcode & 0x0F00;
+  x = x >> 8;
+  unsigned short nn = chip8->opcode & 0x00FF;
+  
+  chip8->V[x] = chip8->V[x] + nn;
+}
+
+//ANNN: set index to value NNN
+void instr_setI(Chip8 *chip8) {
+  unsigned short nnn = chip8->opcode & 0x0FFF;
+  chip8->I = nnn; 
+}
+
+//DXYN: draw N pixels tall sprite from memory pointed by the index starting in coordinate (x, y)
+void instr_draw(Chip8 *chip8) {
+  unsigned short x = chip8->opcode & 0x0F00;
+  x = x >> 8;
+  unsigned short y = chip8->opcode & 0x00F0;
+  y = y >> 4;
+
+  //since there are more coordinates than screen space, must do modulo operation (& in binary) to find the coordinate
+  unsigned char vx = chip8->V[x] & 63;
+  unsigned char vy = chip8->V[y] & 31;
+  unsigned char h = chip8->opcode & 0x000F;
+
+  //reset collision register
+  chip8->V[0xF] = 0x0;
+
+  unsigned char byte;
+  unsigned char current_pixel;
+  int i, j;
+  //i represents the y coordinate
+  //j represents the x coordinate
+  for (i = 0; i < h; i++) {
+    byte = chip8->ram[(chip8->I) + i];
+    for (j = 0; j < 8; j++){
+      current_pixel = byte & (0x80 >> j);
+      //checking if there is a collision
+      if (current_pixel != 0x00) {
+        if (chip8->display[vx + j + SCREEN_WIDTH*(vy + i)] == 0xFF)
+          chip8->V[0xF] = 0xF;
+        chip8->display[vx + j + SCREEN_WIDTH*(vy + i)] = ~chip8->display[vx + j + SCREEN_WIDTH*(vy + i)];
+      }
+    }
+  }
+  Chip8_drawDisplay(chip8);
 }
 
 //implementation of the instruction fetch -> decode -> execute loop of the chip 8 interpreter
 //input: initialized chip8 struct 
-void Chip8_interpreterMainLoop(Chip8 *chip8, SDL_Window *game_window, SDL_Surface *game_surface) {
+void Chip8_interpreterMainLoop(Chip8 *chip8) {
   printf("Starting loop.\n");
   while (1) {
     //fetch stage
@@ -146,7 +236,7 @@ void Chip8_interpreterMainLoop(Chip8 *chip8, SDL_Window *game_window, SDL_Surfac
         switch (opcode_byte2) {
           case 0x00E0: //00E0 - clear screen
             printf("00E0");
-            Chip8_clearScreen(chip8, &game_window, &game_surface);
+            instr_clearScreen(chip8);
           break;
 
           case 0x00EE: //00EE - return from subroutine
@@ -161,6 +251,7 @@ void Chip8_interpreterMainLoop(Chip8 *chip8, SDL_Window *game_window, SDL_Surfac
       
       case 0x1000: //1NNN - jump to address
         printf("1NNN");
+        instr_jump(chip8);
       break;
 
       case 0x2000: //2NNN - jump to subroutine
@@ -181,10 +272,12 @@ void Chip8_interpreterMainLoop(Chip8 *chip8, SDL_Window *game_window, SDL_Surfac
 
       case 0x6000: //6XNN assign (val to reg)
         printf("6XNN");
+        instr_setVX(chip8);
       break;
 
       case 0x7000: //7XNN accumulate (val to reg)
         printf("7XNN");
+        instr_addValVX(chip8);
       break;
       
       case 0x8000:
@@ -237,6 +330,7 @@ void Chip8_interpreterMainLoop(Chip8 *chip8, SDL_Window *game_window, SDL_Surfac
 
       case 0xA000: //ANNN assign to ram pointer
         printf("ANNN");
+        instr_setI(chip8);
       break;
 
       case 0xB000: //BNNN jump to addr + v0
@@ -249,6 +343,7 @@ void Chip8_interpreterMainLoop(Chip8 *chip8, SDL_Window *game_window, SDL_Surfac
 
       case 0xD000: //DXYN draw sprite
         printf("DXYN");
+        instr_draw(chip8);
       break;
 
       case 0xE000: 
