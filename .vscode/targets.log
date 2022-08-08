@@ -6,7 +6,7 @@ make all --print-data-base --no-builtin-variables --no-builtin-rules --question
 # This is free software: you are free to change and redistribute it.
 # There is NO WARRANTY, to the extent permitted by law.
 
-# Make data base, printed on Sat Aug  6 16:12:01 2022
+# Make data base, printed on Sun Aug  7 21:19:19 2022
 
 # Variables
 
@@ -47,7 +47,7 @@ VTE_VERSION = 6003
 # environment
 VSCODE_NLS_CONFIG = {"locale":"en-us","availableLanguages":{},"_languagePackSupport":true}
 # environment
-JOURNAL_STREAM = 8:30437
+JOURNAL_STREAM = 8:29385
 # environment
 XDG_CONFIG_DIRS = /etc/xdg/xdg-ubuntu:/etc/xdg
 # environment
@@ -67,13 +67,13 @@ MAKELEVEL := 0
 # environment
 XDG_DATA_DIRS = /usr/share/ubuntu:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop
 # environment
-DBUS_SESSION_BUS_ADDRESS = unix:path=/run/user/1000/bus,guid=56ac2bf5980e8b7d3afad6ab62e46b8b
+DBUS_SESSION_BUS_ADDRESS = unix:path=/run/user/1000/bus,guid=35998e9a5434ac65627e8b3962f05610
 # environment
 LC_CTYPE = pt_BR.UTF-8
 # makefile (from 'Makefile', line 2)
 OBJS = src/test_chip8.c
 # environment
-MANAGERPID = 964
+MANAGERPID = 967
 # environment
 LESSOPEN = | /usr/bin/lesspipe %s
 # environment
@@ -89,7 +89,7 @@ PATH = /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/
 # environment
 GPG_AGENT_INFO = /run/user/1000/gnupg/S.gpg-agent:0:1
 # environment
-SESSION_MANAGER = local/pedro-VirtualBox:@/tmp/.ICE-unix/1232,unix/pedro-VirtualBox:/tmp/.ICE-unix/1232
+SESSION_MANAGER = local/pedro-VirtualBox:@/tmp/.ICE-unix/1235,unix/pedro-VirtualBox:/tmp/.ICE-unix/1235
 # environment
 XDG_RUNTIME_DIR = /run/user/1000
 # environment
@@ -105,7 +105,7 @@ DISABLE_WAYLAND = 1
 # environment
 ELECTRON_RUN_AS_NODE = 1
 # environment
-INVOCATION_ID = ec78837e298c4c71b61d7cdc99151568
+INVOCATION_ID = c24ce783c675429c816420e3a8f969ef
 # environment
 GDK_PIXBUF_MODULEDIR = /snap/code/102/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders
 # default
@@ -115,7 +115,7 @@ LS_COLORS = rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:
 # environment
 XDG_SESSION_DESKTOP = ubuntu
 # environment
-SSH_AUTH_SOCK = /tmp/ssh-FrlmPfWAjiuv/agent.4107
+SSH_AUTH_SOCK = /run/user/1000/keyring/ssh
 # automatic
 %F = $(notdir $%)
 # environment
@@ -127,7 +127,7 @@ PWD = /home/pedro/Projects/TCC/chip8-emu
 # default
 .LOADED := 
 # environment
-SSH_AGENT_PID = 4108
+SSH_AGENT_PID = 1189
 # environment
 ORIGINAL_XDG_CURRENT_DESKTOP = ubuntu:GNOME
 # makefile (from 'Makefile', line 15)
@@ -241,11 +241,11 @@ LC_ALL = C
 # environment
 DBUS_STARTER_BUS_TYPE = session
 # environment
-GNOME_TERMINAL_SCREEN = /org/gnome/Terminal/screen/765f9ca1_fd95_4d8c_92cf_ca0131cf1462
+GNOME_TERMINAL_SCREEN = /org/gnome/Terminal/screen/6f090bc6_7090_4e08_ba8b_b368d0b78138
 # automatic
 ^F = $(notdir $^)
 # environment
-GNOME_TERMINAL_SERVICE = :1.92
+GNOME_TERMINAL_SERVICE = :1.80
 # default
 SUFFIXES := 
 # environment
@@ -269,9 +269,9 @@ LANG = C
 # environment
 TERM = xterm-256color
 # environment
-VSCODE_PID = 12573
+VSCODE_PID = 2506
 # environment
-DBUS_STARTER_ADDRESS = unix:path=/run/user/1000/bus,guid=56ac2bf5980e8b7d3afad6ab62e46b8b
+DBUS_STARTER_ADDRESS = unix:path=/run/user/1000/bus,guid=35998e9a5434ac65627e8b3962f05610
 # variable set hash-table stats:
 # Load=131/1024=13%, Rehash=0, Collisions=23/167=14%
 
@@ -360,6 +360,6 @@ src/test_chip8.c:
 # strcache performance: lookups = 21 / hit rate = 33%
 # hash-table stats:
 # Load=14/8192=0%, Rehash=0, Collisions=1/21=5%
-# Finished Make data base on Sat Aug  6 16:12:01 2022
+# Finished Make data base on Sun Aug  7 21:19:19 2022
 
  
