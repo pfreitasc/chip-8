@@ -1,5 +1,0 @@
-make all --dry-run --always-make --keep-going --print-directory
-make: Entering directory '/home/pedro/Projects/TCC/chip8-emu'
-gcc src/test_chip8.c -g2 -gdwarf  -lSDL2 -o bin/test_chip8
-make: Leaving directory '/home/pedro/Projects/TCC/chip8-emu'
- 
