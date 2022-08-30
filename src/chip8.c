@@ -4,6 +4,8 @@
 #define RAM_SIZE 4096
 #define RAM_PROGRAM_START 512
 #define MAX_GAME_SIZE 4096-512
+#define CPU_CLOCK_DELAY 0.001 //500Hz (0.002 s) should be enough for most basic games
+#define TIMER_DELAY 0.0166667 //60Hz (0.0166667 s) for timers
 #define SHIFT_INSTRUCTION 1 //if 1, 8XY6 and 8XYE just shift vx. if 0 first sets vx to vy then shifts
 #define JUMP_INSTRUCTION 1 //if 1, BNNN uses v0, else it becomes BXNN, using vx
 #define STORE_INSTRUCTION 1 //if 1, does not increment index while storing/loading registers
@@ -11,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 #include <SDL2/SDL.h>
 
 typedef struct { 
@@ -26,6 +29,7 @@ typedef struct {
   unsigned short SP; //points to top of subroutine stack
   unsigned char key; //current key being pressed on keypad
   unsigned char was_key_pressed; //variable that stores if there is currently a key being pressed
+  float cycleCounter; //stores time elapsed in s since last 60Hz timing
 } Chip8;
 
 //SDL global variables
@@ -76,7 +80,7 @@ void Chip8_init(Chip8 *chip8){
   
   //clearing display
   for (i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++)
-    chip8->display[i] = i;
+    chip8->display[i] = 0;
 
   //setting PC to start of program
   chip8->PC = RAM_PROGRAM_START;
@@ -85,10 +89,11 @@ void Chip8_init(Chip8 *chip8){
   chip8->I = 0;
   chip8->SP = 0;
   chip8->opcode = 0;
-  chip8->key = 0;
+  chip8->key = 16;
   chip8->was_key_pressed = 0;
   chip8->delay_timer = 0;
   chip8->sound_timer = 0;
+  chip8->cycleCounter = 0;
 
   //initializing SDL
   if(SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -145,9 +150,101 @@ void Chip8_drawDisplay(Chip8 *chip8) {
   SDL_RenderPresent(renderer);
 }
 
+void Chip8_setKey(Chip8 *chip8) {
+  SDL_Event event;
+  while (SDL_PollEvent(&event)) {
+    if (event.type == SDL_KEYDOWN) {
+      switch (event.key.keysym.sym) {
+        case SDLK_1:
+          chip8->key = 0x1;
+        break;
+
+        case SDLK_2:
+          chip8->key = 0x2;
+        break;
+        
+        case SDLK_3:
+          chip8->key = 0x3;
+        break;
+        
+        case SDLK_4:
+          chip8->key = 0xC;
+        break;
+        
+        case SDLK_q:
+          chip8->key = 0x4;
+        break;
+
+        case SDLK_w:
+          chip8->key = 0x5;
+        break;
+        
+        case SDLK_e:
+          chip8->key = 0x6;
+        break;
+        
+        case SDLK_r:
+          chip8->key = 0xD;
+        break;
+        
+        case SDLK_a:
+          chip8->key = 0x7;
+        break;
+        
+        case SDLK_s:
+          chip8->key = 0x8;
+        break;
+        
+        case SDLK_d:
+          chip8->key = 0x9;
+        break;
+        
+        case SDLK_f:
+          chip8->key = 0xE;
+        break;
+        
+        case SDLK_z:
+          chip8->key = 0xA;
+        break;
+        
+        case SDLK_x:
+          chip8->key = 0x0;
+        break;
+        
+        case SDLK_c:
+          chip8->key = 0xB;
+        break;
+        
+        case SDLK_v:
+          chip8->key = 0xF;
+        break;
+
+        default:
+          chip8->key = 0x10;
+        break;
+      }
+    }
+
+    if (event.type == SDL_KEYUP) {
+      chip8->key = 16;
+    }
+  }
+}
+
+//timing function for the chip8
+void Chip8_tick(Chip8 *chip8) {
+  usleep(CPU_CLOCK_DELAY * 1000000);
+  chip8->cycleCounter += CPU_CLOCK_DELAY;
+  if (chip8->cycleCounter >= 1/60) {
+    chip8->cycleCounter = 0;
+    chip8->delay_timer -= 1;
+    chip8->sound_timer -= 1;
+  }
+}
+
 //instructions
 
-//0E00: clear screen
+//00E0: clear screen
 void instr_clearScreen(Chip8 *chip8) {
   //clearing display
   int i = 0;
@@ -174,7 +271,6 @@ void instr_callSubroutine(Chip8 *chip8) {
   unsigned short nnn = chip8->opcode & 0x0FFF;
   
   chip8->SP += 1;
-  chip8->PC -= 2;
   chip8->subroutine_stack[chip8->SP] = chip8->PC;
   chip8->PC = nnn;
 }
@@ -296,15 +392,14 @@ void instr_sub_vx_vy(Chip8 *chip8) {
   unsigned short y = chip8->opcode & 0x00F0;
   y = y >> 4;
 
-  unsigned short sub;
-
-  sub = chip8->V[x] - chip8->V[y];
-  chip8->V[x] = sub;
-
-  if (sub > 0)
+  if (chip8->V[x] > chip8->V[y])
     chip8->V[0xF] = 1;
   else
     chip8->V[0xF] = 0;
+
+  unsigned short sub;
+  sub = chip8->V[x] - chip8->V[y];
+  chip8->V[x] = sub;
 }
 
 //8XY6: sets vx to value of vy then shifts vx to the right
@@ -335,15 +430,14 @@ void instr_sub_vy_vx(Chip8 *chip8) {
   unsigned short y = chip8->opcode & 0x00F0;
   y = y >> 4;
 
-  unsigned short sub;
-
-  sub = chip8->V[y] - chip8->V[x];
-  chip8->V[x] = sub;
-
-  if (sub > 0)
+  if (chip8->V[x] < chip8->V[y])
     chip8->V[0xF] = 1;
   else
     chip8->V[0xF] = 0;
+  
+  unsigned short sub;
+  sub = chip8->V[y] - chip8->V[x];
+  chip8->V[x] = sub;
 }
 
 //8XY6: sets vx to value of vy then shifts vx to the left
@@ -421,7 +515,7 @@ void instr_draw(Chip8 *chip8) {
   unsigned char h = chip8->opcode & 0x000F;
 
   //reset collision register
-  chip8->V[0xF] = 0x0;
+  chip8->V[0xF] = 0;
 
   unsigned char byte;
   unsigned char current_pixel;
@@ -435,7 +529,7 @@ void instr_draw(Chip8 *chip8) {
       //checking if there is a collision
       if (current_pixel != 0x00) {
         if (chip8->display[vx + j + SCREEN_WIDTH*(vy + i)] == 0xFF)
-          chip8->V[0xF] = 0xF;
+          chip8->V[0xF] = 1;
         chip8->display[vx + j + SCREEN_WIDTH*(vy + i)] = ~chip8->display[vx + j + SCREEN_WIDTH*(vy + i)];
       }
     }
@@ -454,7 +548,7 @@ void instr_skipEq_vx_key(Chip8 *chip8) {
 }
 
 //EXA1: skips instruction if key corresponding to vx is not pressed
-void instr_skipEq_vx_key(Chip8 *chip8) {
+void instr_skipNEq_vx_key(Chip8 *chip8) {
   unsigned short x = chip8->opcode & 0x0F00;
   x = x >> 8;
 
@@ -476,12 +570,16 @@ void instr_getKey(Chip8 *chip8) {
   unsigned short x = chip8->opcode & 0x0F00;
   x = x >> 8;
 
-  if (chip8->was_key_pressed) {
+  chip8->was_key_pressed = 0;
+
+  if (chip8->key < 16) {
     chip8->V[x] = chip8->key;
-    chip8->was_key_pressed = 0;
+    chip8->was_key_pressed = 1;
   }
-  else
+
+  if (chip8->was_key_pressed == 0) {
     chip8->PC -= 2;
+  }
 }
 
 //FX15: delay timer gets vx
@@ -493,7 +591,7 @@ void instr_set_delayTimer_vx(Chip8 *chip8) {
 }
 
 //FX18: sound timer gets vx
-void instr_set_delayTimer_vx(Chip8 *chip8) {
+void instr_set_soundTimer_vx(Chip8 *chip8) {
   unsigned short x = chip8->opcode & 0x0F00;
   x = x >> 8;
 
@@ -502,7 +600,7 @@ void instr_set_delayTimer_vx(Chip8 *chip8) {
 
 //FX1E: add to index
 //vf gets 1 if i exceeds adressing range (0x0FFF)
-void instr_add_i_x(Chip8 *chip8) {
+void instr_add_i_vx(Chip8 *chip8) {
   unsigned short x = chip8->opcode & 0x0F00;
   x = x >> 8;
 
@@ -513,7 +611,7 @@ void instr_add_i_x(Chip8 *chip8) {
 }
 
 //FX29: points i to hex char in last nibble of vx
-void instr_add_i_x(Chip8 *chip8) {
+void instr_hex(Chip8 *chip8) {
   unsigned short x = chip8->opcode & 0x0F00;
   x = x >> 8;
   unsigned char vx = chip8->V[x] & 0x0F;
@@ -546,11 +644,11 @@ void instr_store_v0_vx(Chip8 *chip8) {
   for (i = 0; i <= x; i++)
     chip8->ram[chip8->I + i] = chip8->V[i];
   if (STORE_INSTRUCTION == 0)
-    chip8->I = chip8 I + x + 1;
+    chip8->I = chip8->I + x + 1;
 }
 
-//FX55: load in v0 to vx ram data
-void instr_store_v0_vx(Chip8 *chip8) {
+//FX65: load in v0 to vx ram data
+void instr_load_v0_vx(Chip8 *chip8) {
   unsigned short x = chip8->opcode & 0x0F00;
   x = x >> 8;
   
@@ -558,7 +656,7 @@ void instr_store_v0_vx(Chip8 *chip8) {
   for (i = 0; i <= x; i++)
     chip8->V[i] = chip8->ram[chip8->I + i];
   if (STORE_INSTRUCTION == 0)
-    chip8->I = chip8 I + x + 1;
+    chip8->I = chip8->I + x + 1;
 }
 
 //implementation of the instruction fetch -> decode -> execute loop of the chip 8 interpreter
@@ -589,6 +687,7 @@ void Chip8_interpreterMainLoop(Chip8 *chip8) {
 
           case 0x00EE: //00EE - return from subroutine
             printf("00EE");
+            instr_return(chip8);
           break;
 
           default: //doesn't exist
@@ -604,18 +703,22 @@ void Chip8_interpreterMainLoop(Chip8 *chip8) {
 
       case 0x2000: //2NNN - jump to subroutine
         printf("2NNN");
+        instr_callSubroutine(chip8);
       break;
 
       case 0x3000: //3XNN - skip if different (reg with val)
         printf("3XNN");
+        instr_skipEq_vx_nn(chip8);
       break;
 
       case 0x4000: //4XNN skip if equals (reg with val)
         printf("4XNN");
+        instr_skipNEq_vx_nn(chip8);
       break;
 
       case 0x5000: //5XY0 skip if equals (reg with reg)
         printf("5XY0");
+        instr_skipEq_vx_vy(chip8);
       break;
 
       case 0x6000: //6XNN assign (val to reg)
@@ -632,38 +735,47 @@ void Chip8_interpreterMainLoop(Chip8 *chip8) {
         switch (opcode_nibble4) {
           case 0x0000: //8XY0 assign (reg to reg)
             printf("8XY0");
+            instr_set_vx_vy(chip8);
           break;
 
           case 0x0001: //8XY1 bitwise OR (reg with reg)
             printf("8XY1");
+            instr_or_vx_vy(chip8);
           break;
 
           case 0x0002: //8XY2 bitwise AND (reg with reg)
             printf("8XY2");
+            instr_and_vx_vy(chip8);
           break;
 
           case 0x0003: //8XY3 bitwise XOR (reg with reg)
             printf("8XY3");
+            instr_xor_vx_vy(chip8);
           break;
 
           case 0x0004: //8XY4 accumulate (reg to reg)
             printf("8XY4");
+            instr_add_vx_vy(chip8);
           break;
 
           case 0x0005: //8XY5 subtract then assign (reg to reg)
             printf("8XY5");
+            instr_sub_vx_vy(chip8);
           break;
 
           case 0x0006: //8XY6 assign then shift right (reg by reg) or shift (reg)
             printf("8XY6");
+            instr_shr_vx(chip8);
           break;
 
           case 0x0007: //8XY7 neg subtract then assign (reg to reg)
             printf("8XY7");
+            instr_sub_vy_vx(chip8);
           break;
 
           case 0x000E: //8XYE 8XY6 assign then shift left (reg by reg) or shift (reg)
             printf("8XYE");
+            instr_shl_vx(chip8);
           break;
 
           default: //doesn't exist
@@ -672,8 +784,9 @@ void Chip8_interpreterMainLoop(Chip8 *chip8) {
         }
       break;
 
-      case 0x9000: //9XY0 skip if equals (reg with reg)
+      case 0x9000: //9XY0 skip if different (reg with reg)
         printf("9XY0");
+        instr_skipNEq_vx_vy(chip8);
       break;
 
       case 0xA000: //ANNN assign to ram pointer
@@ -683,10 +796,12 @@ void Chip8_interpreterMainLoop(Chip8 *chip8) {
 
       case 0xB000: //BNNN jump to addr + v0
         printf("BNNN");
+        instr_jumpOffset(chip8);
       break;
 
       case 0xC000: //CXNN random number AND val
         printf("CXNN");
+        instr_rand(chip8);
       break;
 
       case 0xD000: //DXYN draw sprite
@@ -696,12 +811,14 @@ void Chip8_interpreterMainLoop(Chip8 *chip8) {
 
       case 0xE000: 
         switch (opcode_nibble4) {
-          case 0x000E: //EX9E skip if key not pressed
+          case 0x000E: //EX9E skip if key is pressed
             printf("EX9E");
+            instr_skipEq_vx_key(chip8);
           break;
 
-          case 0x0001: //EXA1 skip if key pressed
+          case 0x0001: //EXA1 skip if key not pressed
             printf("EXA1");
+            instr_skipNEq_vx_key(chip8);
           break;
 
           default: //Doesn't exist
@@ -714,38 +831,47 @@ void Chip8_interpreterMainLoop(Chip8 *chip8) {
         switch (opcode_byte2) {
           case 0x0007: //FX07 assign delay timer to reg
             printf("FX07");
+            instr_set_vx_delayTimer(chip8);
           break;
 
           case 0x000A: //FX0A assign key to reg (wait for keypress)
             printf("FX0A");
+            instr_getKey(chip8);
           break;
 
           case 0x0015: //FX15 assign reg to delay timer
             printf("FX15");
+            instr_set_delayTimer_vx(chip8);
           break;
 
           case 0x0018: //FX18 assign reg to sound timer
             printf("FX18");
+            instr_set_soundTimer_vx(chip8);
           break;
 
           case 0x001E: //FX1E accumulate to ram pointer
             printf("FX1E");
+            instr_add_i_vx(chip8);
           break;
 
           case 0x0029: //FX29 assign ram pointer to hex char in reg (in ram region 0~0x50)
             printf("FX29");
+            instr_hex(chip8);
           break;
 
           case 0x0033: //FX33 bcd reg
             printf("FX33");
+            instr_store_vx_bcd(chip8);
           break;
 
           case 0x0055: //FX55 save regs to ram
             printf("FX55");
+            instr_store_v0_vx(chip8);
           break;
 
           case 0x0065: //FX65 load regs from ram
             printf("FX65");
+            instr_load_v0_vx(chip8);
           break;
 
           default: //doesn't exist
@@ -759,5 +885,11 @@ void Chip8_interpreterMainLoop(Chip8 *chip8) {
       break;
     }
     printf("\n");
+
+    //Store key being pressed
+    Chip8_setKey(chip8);
+
+    //Slow system speed to 500Hz
+    Chip8_tick(chip8);
   }
 }
